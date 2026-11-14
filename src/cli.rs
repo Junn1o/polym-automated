@@ -1,13 +1,24 @@
 use std::error::Error;
+use std::path::Path;
 use std::process::Command;
 
-// TODO: xác nhận lại cú pháp chính xác sau khi cài NetBird CLI trên máy thật.
+const FALLBACK_NETBIRD_PATH: &str = "C:\\Program Files\\NetBird\\netbird.exe";
+
+fn netbird_binary() -> String {
+    if Path::new(FALLBACK_NETBIRD_PATH).exists() {
+        FALLBACK_NETBIRD_PATH.to_string()
+    } else {
+        "netbird".to_string()
+    }
+}
+
 pub fn netbird_up(management_url: &str) -> Result<String, Box<dyn Error>> {
-    let output = Command::new("netbird")
+    let output = Command::new(netbird_binary())
         .arg("up")
         .arg("--management-url")
         .arg(management_url)
-        .output()?;
+        .output()
+        .map_err(|e| format!("Không chạy được netbird (đã cài NetBird CLI chưa?): {}", e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -20,7 +31,10 @@ pub fn netbird_up(management_url: &str) -> Result<String, Box<dyn Error>> {
 }
 
 pub fn netbird_status() -> Result<String, Box<dyn Error>> {
-    let output = Command::new("netbird").arg("status").output()?;
+    let output = Command::new(netbird_binary())
+        .arg("status")
+        .output()
+        .map_err(|e| format!("Không chạy được netbird (đã cài NetBird CLI chưa?): {}", e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();

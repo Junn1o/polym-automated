@@ -8,7 +8,10 @@ use crate::cli;
 use crate::installer;
 
 const INSTALLER_URL: &str = "https://pkgs.netbird.io/windows/x64";
-const INSTALLER_PATH: &str = "netbird_installer.exe";
+
+fn installer_path() -> std::path::PathBuf {
+    std::env::temp_dir().join("netbird_installer.exe")
+}
 
 #[derive(PartialEq, Clone)]
 enum Step {
@@ -75,10 +78,12 @@ impl WizardApp {
 
         thread::spawn(move || {
             let result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                installer::download_file(INSTALLER_URL, INSTALLER_PATH)?;
-                let ok = installer::run_installer(INSTALLER_PATH)?;
+                let path = installer_path();
+                let path_str = path.to_str().ok_or("Đường dẫn file cài đặt không hợp lệ")?;
+                installer::download_file(INSTALLER_URL, path_str)?;
+                let ok = installer::run_installer(path_str)?;
                 if ok {
-                    installer::delete_file(INSTALLER_PATH)?;
+                    installer::delete_file(path_str)?;
                 }
                 Ok(())
             })();
