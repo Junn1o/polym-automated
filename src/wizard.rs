@@ -20,7 +20,6 @@ enum Step {
     ServerCheck,
     CreatingInvite,
     WaitingForPassword,
-    ConfiguringClient,
     Connecting,
     Done,
     Error(String),
@@ -258,7 +257,7 @@ impl eframe::App for WizardApp {
                     }
                 }
                 if ui.button("Đã đặt mật khẩu xong, tiếp tục").clicked() {
-                    self.step = Step::ConfiguringClient;
+                    self.start_connect();
                 }
             }
             Step::Connecting => {
