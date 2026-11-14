@@ -39,13 +39,22 @@ pub struct WizardApp {
     rx: Option<Receiver<WorkerMsg>>,
     domain: String,
     bearer_token: String,
+    auto_groups: Vec<String>,
     email_input: String,
+    name_input: String,
+    role_input: String,
 }
 
 impl WizardApp {
     pub fn new() -> Self {
         let domain = std::env::var("NETBIRD_DOMAIN").unwrap_or_default();
         let bearer_token = std::env::var("API_BEARER_TOKEN").unwrap_or_default();
+        let auto_groups = std::env::var("AUTO_GROUP_ID")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
 
         Self {
             step: Step::ChooseAction,
@@ -53,7 +62,10 @@ impl WizardApp {
             rx: None,
             domain,
             bearer_token,
+            auto_groups,
             email_input: String::new(),
+            name_input: String::new(),
+            role_input: "user".to_string(),
         }
     }
 
@@ -87,13 +99,16 @@ impl WizardApp {
         let bearer_token = self.bearer_token.clone();
         let domain = self.domain.clone();
         let email = self.email_input.clone();
+        let name = self.name_input.clone();
+        let role = self.role_input.clone();
+        let auto_groups = self.auto_groups.clone();
 
         thread::spawn(move || {
             let request = InviteRequest {
                 email,
-                name: "New User".to_string(),
-                role: "user".to_string(),
-                auto_groups: vec![],
+                name,
+                role,
+                auto_groups,
                 expires_in: 259200,
             };
 
@@ -142,6 +157,7 @@ impl WizardApp {
                 WorkerMsg::InstallDone => self.step = Step::ServerCheck,
                 WorkerMsg::InstallFailed(e) => self.step = Step::Error(e),
                 WorkerMsg::InviteDone(url) => {
+                    let _ = webbrowser::open(&url);
                     self.invite_url = Some(url);
                     self.step = Step::WaitingForPassword;
                 }
@@ -179,14 +195,25 @@ impl eframe::App for WizardApp {
             Step::ServerCheck => {
                 ui.heading("Cấu hình server");
                 ui.label("Bạn đã có account chưa?");
-                if ui.button("Chưa có, tạo account mới").clicked() {
-                    self.step = Step::CreatingInvite;
-                }
                 ui.horizontal(|ui| {
                     ui.label("Email:");
                     ui.text_edit_singleline(&mut self.email_input);
                 });
-                if ui.button("Tạo invite").clicked() && !self.email_input.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.label("Tên:");
+                    ui.text_edit_singleline(&mut self.name_input);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Role:");
+                    egui::ComboBox::from_id_salt("role_select")
+                        .selected_text(&self.role_input)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut self.role_input, "user".to_string(), "user");
+                            ui.selectable_value(&mut self.role_input, "admin".to_string(), "admin");
+                        });
+                });
+                let can_submit = !self.email_input.is_empty() && !self.name_input.is_empty();
+                if ui.add_enabled(can_submit, egui::Button::new("Tạo invite")).clicked() {
                     self.start_create_invite();
                 }
                 if ui.button("Đã có account, kết nối luôn").clicked() {
