@@ -148,7 +148,7 @@ impl WizardApp {
                 cli::netbird_up(&management_url)?;
                 let status = cli::netbird_status()?;
                 if !cli::is_connected(&status) {
-                    Err(format!("NetBird not connected. Status output: {}", status))?;
+                    Err(format!("Polym VPN not connected. Status output: {}", status))?;
                 }
                 Ok(())
             })();
@@ -190,13 +190,16 @@ impl eframe::App for WizardApp {
 
         egui::CentralPanel::default().show(ctx, |ui| match self.step.clone() {
             Step::ChooseAction => {
-                ui.heading("NetBird Setup Wizard");
+                ui.heading("Polym VPN Setup Wizard");
                 ui.label("Bạn muốn làm gì?");
-                if ui.button("Cài đặt NetBird").clicked() {
+                if ui.button("Cài đặt Polym VPN").clicked() {
                     self.start_install();
                 }
-                if ui.button("Set server").clicked() {
+                if ui.button("Set up Polym VPN").clicked() {
                     self.step = Step::ServerCheck;
+                }
+                if ui.button("Kết nối tới Polym VPN").clicked() {
+                    self.start_connect();
                 }
             }
             Step::Installing => {
@@ -204,6 +207,9 @@ impl eframe::App for WizardApp {
                 ui.spinner();
             }
             Step::ServerCheck => {
+                if ui.button("Quay lại").clicked() {
+                    self.step = Step::ChooseAction;
+                }
                 ui.heading("Cấu hình server");
                 ui.label("Bạn đã có account chưa?");
                 ui.horizontal(|ui| {
@@ -228,17 +234,21 @@ impl eframe::App for WizardApp {
                     self.start_create_invite();
                 }
                 if ui.button("Đã có account, kết nối luôn").clicked() {
-                    if !self.domain.is_empty() {
-                        let _ = webbrowser::open(&format!("https://{}", self.domain));
-                    }
-                    self.step = Step::ConfiguringClient;
+                    self.start_connect();
                 }
             }
             Step::CreatingInvite => {
+                if ui.button("Quay lại").clicked() {
+                    self.rx = None;
+                    self.step = Step::ChooseAction;
+                }
                 ui.heading("Đang tạo invite...");
                 ui.spinner();
             }
             Step::WaitingForPassword => {
+                if ui.button("Quay lại").clicked() {
+                    self.step = Step::ChooseAction;
+                }
                 ui.heading("Tạo mật khẩu");
                 ui.label("Mở trình duyệt để đặt mật khẩu cho account mới:");
                 if let Some(url) = self.invite_url.clone() {
@@ -251,21 +261,13 @@ impl eframe::App for WizardApp {
                     self.step = Step::ConfiguringClient;
                 }
             }
-            Step::ConfiguringClient => {
-                ui.heading("Cấu hình NetBird client");
-                ui.label(format!("Self-hosted domain: {}", self.domain));
-                ui.label("NetBird sẽ tự mở trình duyệt để xác thực khi kết nối.");
-                if ui.button("Kết nối").clicked() {
-                    self.start_connect();
-                }
-            }
             Step::Connecting => {
-                ui.heading("Đang kết nối NetBird...");
+                ui.heading("Đang kết nối tới Polym VPN...");
                 ui.spinner();
             }
             Step::Done => {
                 ui.heading("Hoàn tất!");
-                ui.label("NetBird đã kết nối thành công.");
+                ui.label("Polym VPN đã kết nối thành công.");
                 if ui.button("Đóng").clicked() {
                     cli::open_netbird_ui();
                     std::process::exit(0);

@@ -36,7 +36,13 @@ fn load_vietnamese_font(ctx: &eframe::egui::Context) {
 fn main() -> eframe::Result<()> {
     dotenvy::dotenv().ok();
 
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        viewport: eframe::egui::ViewportBuilder::default()
+            .with_inner_size([480.0, 360.0])
+            .with_min_inner_size([360.0, 280.0])
+            .with_resizable(true),
+        ..Default::default()
+    };
     eframe::run_native(
         "NetBird Setup Wizard",
         options,
