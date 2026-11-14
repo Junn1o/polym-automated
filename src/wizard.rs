@@ -9,7 +9,6 @@ use crate::installer;
 
 const INSTALLER_URL: &str = "https://pkgs.netbird.io/windows/x64";
 const INSTALLER_PATH: &str = "netbird_installer.exe";
-const INVITE_API_URL: &str = "https://api.netbird.io/api/users/invites";
 
 #[derive(PartialEq, Clone)]
 enum Step {
@@ -112,7 +111,8 @@ impl WizardApp {
                 expires_in: 259200,
             };
 
-            let result = api::create_invite(INVITE_API_URL, &bearer_token, &request);
+            let invite_api_url = format!("https://{}/api/users/invites", domain);
+            let result = api::create_invite(&invite_api_url, &bearer_token, &request);
 
             match result {
                 Ok(invite) => {
