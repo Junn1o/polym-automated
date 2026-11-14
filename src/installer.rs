@@ -19,7 +19,7 @@ pub fn run_installer(installer_path: &str) -> Result<bool, Box<dyn Error>> {
     if status.success() {
         Ok(true)
     } else {
-        Err(format!("Installer exited with error: {:?}", status))?;
+        Err(format!("Installer exited with error: {:?}", status))?
     }
 }
 
