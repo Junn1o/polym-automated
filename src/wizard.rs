@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 
@@ -135,7 +136,11 @@ impl WizardApp {
 
             match result {
                 Ok(invite) => {
-                    let url = api::build_invite_url(&domain, &invite.invite_token);
+                    let url = format!(
+                        "https://{}/invite?token={}",
+                        domain,
+                        invite.invite_token
+                    );
                     tx.send(WorkerMsg::InviteDone(url)).ok()
                 }
                 Err(e) => tx.send(WorkerMsg::InviteFailed(e.to_string())).ok(),
