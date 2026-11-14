@@ -45,3 +45,26 @@ pub fn create_invite(
 pub fn build_invite_url(domain: &str, invite_token: &str) -> String {
     format!("https://{}/invite/{}", domain, invite_token)
 }
+
+#[derive(Deserialize)]
+pub struct PeerResponse {
+    pub ip: String,
+}
+
+pub fn get_peer_ip(domain: &str, bearer_token: &str, peer_id: &str) -> Result<String, Box<dyn Error>> {
+    let client = Client::new();
+    let url = format!("https://{}/api/peers/{}", domain, peer_id);
+
+    let res = client
+        .get(&url)
+        .header(AUTHORIZATION, format!("Token {}", bearer_token))
+        .header("Accept", "application/json")
+        .send()?;
+
+    if !res.status().is_success() {
+        Err(format!("Get peer API request failed with status: {}", res.status()))?;
+    }
+
+    let peer: PeerResponse = res.json()?;
+    Ok(peer.ip)
+}

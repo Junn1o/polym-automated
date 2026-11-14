@@ -32,6 +32,8 @@ enum WorkerMsg {
     InviteFailed(String),
     ConnectDone,
     ConnectFailed(String),
+    PeerIpDone(String),
+    PeerIpFailed(String),
 }
 
 pub struct WizardApp {
@@ -41,6 +43,9 @@ pub struct WizardApp {
     domain: String,
     bearer_token: String,
     auto_groups: Vec<String>,
+    peer_id: String,
+    peer_ip: Option<String>,
+    peer_ip_error: Option<String>,
     email_input: String,
     name_input: String,
     role_input: String,
@@ -56,6 +61,7 @@ impl WizardApp {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
+        let peer_id = std::env::var("PEER_ID").unwrap_or_default();
 
         Self {
             step: Step::ChooseAction,
@@ -64,6 +70,9 @@ impl WizardApp {
             domain,
             bearer_token,
             auto_groups,
+            peer_id,
+            peer_ip: None,
+            peer_ip_error: None,
             email_input: String::new(),
             name_input: String::new(),
             role_input: "user".to_string(),
@@ -159,6 +168,25 @@ impl WizardApp {
         });
     }
 
+    fn start_fetch_peer_ip(&mut self) {
+        let (tx, rx) = channel();
+        self.rx = Some(rx);
+        self.peer_ip_error = None;
+
+        let domain = self.domain.clone();
+        let bearer_token = self.bearer_token.clone();
+        let peer_id = self.peer_id.clone();
+
+        thread::spawn(move || {
+            let result = api::get_peer_ip(&domain, &bearer_token, &peer_id);
+
+            match result {
+                Ok(ip) => tx.send(WorkerMsg::PeerIpDone(ip)).ok(),
+                Err(e) => tx.send(WorkerMsg::PeerIpFailed(e.to_string())).ok(),
+            };
+        });
+    }
+
     fn poll_worker(&mut self) {
         let Some(rx) = &self.rx else { return };
 
@@ -174,6 +202,8 @@ impl WizardApp {
                 WorkerMsg::InviteFailed(e) => self.step = Step::Error(e),
                 WorkerMsg::ConnectDone => self.step = Step::Done,
                 WorkerMsg::ConnectFailed(e) => self.step = Step::Error(e),
+                WorkerMsg::PeerIpDone(ip) => self.peer_ip = Some(ip),
+                WorkerMsg::PeerIpFailed(e) => self.peer_ip_error = Some(e),
             }
             self.rx = None;
         }
@@ -267,6 +297,22 @@ impl eframe::App for WizardApp {
             Step::Done => {
                 ui.heading("Hoàn tất!");
                 ui.label("Polym VPN đã kết nối thành công.");
+
+                if ui.button("Hiện IP").clicked() {
+                    self.start_fetch_peer_ip();
+                }
+                if let Some(ip) = self.peer_ip.clone() {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("IP: {}", ip));
+                        if ui.button("Copy").clicked() {
+                            ui.ctx().copy_text(ip);
+                        }
+                    });
+                }
+                if let Some(err) = self.peer_ip_error.clone() {
+                    ui.colored_label(egui::Color32::RED, &err);
+                }
+
                 if ui.button("Đóng").clicked() {
                     cli::open_netbird_ui();
                     std::process::exit(0);
