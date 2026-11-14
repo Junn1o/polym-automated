@@ -1,9 +1,11 @@
 use std::error::Error;
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
 
 const FALLBACK_NETBIRD_PATH: &str = "C:\\Program Files\\NetBird\\netbird.exe";
 const FALLBACK_NETBIRD_UI_PATH: &str = "C:\\Program Files\\NetBird\\netbird-ui.exe";
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 fn netbird_binary() -> String {
     if Path::new(FALLBACK_NETBIRD_PATH).exists() {
@@ -27,11 +29,14 @@ pub fn netbird_up_silent(management_url: &str) {
         .arg("--management-url")
         .arg(management_url)
         .arg("--disable-auto-connect")
+        .creation_flags(CREATE_NO_WINDOW)
         .output();
 }
 
 pub fn open_netbird_ui() {
-    let _ = Command::new(netbird_ui_binary()).spawn();
+    let _ = Command::new(netbird_ui_binary())
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn();
 }
 
 pub fn netbird_up(management_url: &str) -> Result<String, Box<dyn Error>> {
@@ -39,6 +44,7 @@ pub fn netbird_up(management_url: &str) -> Result<String, Box<dyn Error>> {
         .arg("up")
         .arg("--management-url")
         .arg(management_url)
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("Không chạy được netbird (đã cài NetBird CLI chưa?): {}", e))?;
 
@@ -55,6 +61,7 @@ pub fn netbird_up(management_url: &str) -> Result<String, Box<dyn Error>> {
 pub fn netbird_status() -> Result<String, Box<dyn Error>> {
     let output = Command::new(netbird_binary())
         .arg("status")
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("Không chạy được netbird (đã cài NetBird CLI chưa?): {}", e))?;
 
