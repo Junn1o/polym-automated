@@ -1,4 +1,3 @@
-#![windows_subsystem = "windows"]
 use std::error::Error;
 
 use reqwest::blocking::Client;

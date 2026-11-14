@@ -1,4 +1,3 @@
-#![windows_subsystem = "windows"]
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 
@@ -52,17 +51,20 @@ pub struct WizardApp {
     role_input: String,
 }
 
+fn config_var(key: &str, baked: &str) -> String {
+    std::env::var(key).unwrap_or_else(|_| baked.to_string())
+}
+
 impl WizardApp {
     pub fn new() -> Self {
-        let domain = std::env::var("NETBIRD_DOMAIN").unwrap_or_default();
-        let bearer_token = std::env::var("API_PAT_TOKEN").unwrap_or_default();
-        let auto_groups = std::env::var("AUTO_GROUP_ID")
-            .unwrap_or_default()
+        let domain = config_var("NETBIRD_DOMAIN", option_env!("BAKED_NETBIRD_DOMAIN").unwrap_or(""));
+        let bearer_token = config_var("API_PAT_TOKEN", option_env!("BAKED_API_PAT_TOKEN").unwrap_or(""));
+        let auto_groups = config_var("AUTO_GROUP_ID", option_env!("BAKED_AUTO_GROUP_ID").unwrap_or(""))
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        let peer_id = std::env::var("PEER_ID").unwrap_or_default();
+        let peer_id = config_var("PEER_ID", option_env!("BAKED_PEER_ID").unwrap_or(""));
 
         Self {
             step: Step::ChooseAction,
