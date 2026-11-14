@@ -230,6 +230,21 @@ impl eframe::App for WizardApp {
                 if ui.button("Kết nối tới Polym VPN").clicked() {
                     self.start_connect();
                 }
+
+                if ui.button("Lấy IP Polym").clicked() {
+                    self.start_fetch_peer_ip();
+                }
+                if let Some(ip) = self.peer_ip.clone() {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("IP: {}:25569", ip));
+                        if ui.button("Copy").clicked() {
+                            ui.ctx().copy_text(ip);
+                        }
+                    });
+                }
+                if let Some(err) = self.peer_ip_error.clone() {
+                    ui.colored_label(egui::Color32::RED, &err);
+                }
             }
             Step::Installing => {
                 ui.heading("Đang cài đặt...");
