@@ -76,6 +76,8 @@ impl WizardApp {
         self.rx = Some(rx);
         self.step = Step::Installing;
 
+        let domain = self.domain.clone();
+
         thread::spawn(move || {
             let result = (|| -> Result<(), Box<dyn std::error::Error>> {
                 let path = installer_path();
@@ -84,6 +86,10 @@ impl WizardApp {
                 let ok = installer::run_installer(path_str)?;
                 if ok {
                     installer::delete_file(path_str)?;
+                }
+                if !domain.is_empty() {
+                    let management_url = format!("https://{}:443", domain);
+                    cli::netbird_up_silent(&management_url);
                 }
                 Ok(())
             })();
@@ -222,6 +228,9 @@ impl eframe::App for WizardApp {
                     self.start_create_invite();
                 }
                 if ui.button("Đã có account, kết nối luôn").clicked() {
+                    if !self.domain.is_empty() {
+                        let _ = webbrowser::open(&format!("https://{}", self.domain));
+                    }
                     self.step = Step::ConfiguringClient;
                 }
             }
@@ -258,6 +267,7 @@ impl eframe::App for WizardApp {
                 ui.heading("Hoàn tất!");
                 ui.label("NetBird đã kết nối thành công.");
                 if ui.button("Đóng").clicked() {
+                    cli::open_netbird_ui();
                     std::process::exit(0);
                 }
             }

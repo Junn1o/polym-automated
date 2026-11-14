@@ -3,6 +3,7 @@ use std::path::Path;
 use std::process::Command;
 
 const FALLBACK_NETBIRD_PATH: &str = "C:\\Program Files\\NetBird\\netbird.exe";
+const FALLBACK_NETBIRD_UI_PATH: &str = "C:\\Program Files\\NetBird\\netbird-ui.exe";
 
 fn netbird_binary() -> String {
     if Path::new(FALLBACK_NETBIRD_PATH).exists() {
@@ -10,6 +11,27 @@ fn netbird_binary() -> String {
     } else {
         "netbird".to_string()
     }
+}
+
+fn netbird_ui_binary() -> String {
+    if Path::new(FALLBACK_NETBIRD_UI_PATH).exists() {
+        FALLBACK_NETBIRD_UI_PATH.to_string()
+    } else {
+        "netbird-ui".to_string()
+    }
+}
+
+pub fn netbird_up_silent(management_url: &str) {
+    let _ = Command::new(netbird_binary())
+        .arg("up")
+        .arg("--management-url")
+        .arg(management_url)
+        .arg("--disable-auto-connect")
+        .output();
+}
+
+pub fn open_netbird_ui() {
+    let _ = Command::new(netbird_ui_binary()).spawn();
 }
 
 pub fn netbird_up(management_url: &str) -> Result<String, Box<dyn Error>> {
