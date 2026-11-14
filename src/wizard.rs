@@ -271,15 +271,6 @@ impl eframe::App for WizardApp {
                     ui.label("Tên:");
                     ui.text_edit_singleline(&mut self.name_input);
                 });
-                ui.horizontal(|ui| {
-                    ui.label("Role:");
-                    egui::ComboBox::from_id_salt("role_select")
-                        .selected_text(&self.role_input)
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.role_input, "user".to_string(), "user");
-                            ui.selectable_value(&mut self.role_input, "admin".to_string(), "admin");
-                        });
-                });
                 let can_submit = !self.email_input.is_empty() && !self.name_input.is_empty();
                 if ui.add_enabled(can_submit, egui::Button::new("Tạo invite")).clicked() {
                     self.start_create_invite();
