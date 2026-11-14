@@ -238,7 +238,7 @@ impl eframe::App for WizardApp {
                     ui.horizontal(|ui| {
                         ui.label(format!("IP: {}:25569", ip));
                         if ui.button("Copy").clicked() {
-                            ui.ctx().copy_text(ip);
+                            ui.ctx().copy_text(format!("{}:25569", ip));
                         }
                     });
                 }
@@ -318,9 +318,9 @@ impl eframe::App for WizardApp {
                 }
                 if let Some(ip) = self.peer_ip.clone() {
                     ui.horizontal(|ui| {
-                        ui.label(format!("IP: {}", ip));
+                        ui.label(format!("IP: {}:25569", ip));
                         if ui.button("Copy").clicked() {
-                            ui.ctx().copy_text(ip);
+                            ui.ctx().copy_text(format!("{}:25569", ip));
                         }
                     });
                 }
