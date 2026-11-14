@@ -51,17 +51,20 @@ pub struct WizardApp {
     role_input: String,
 }
 
+fn config_var(key: &str, baked: &str) -> String {
+    std::env::var(key).unwrap_or_else(|_| baked.to_string())
+}
+
 impl WizardApp {
     pub fn new() -> Self {
-        let domain = std::env::var("NETBIRD_DOMAIN").unwrap_or_default();
-        let bearer_token = std::env::var("API_PAT_TOKEN").unwrap_or_default();
-        let auto_groups = std::env::var("AUTO_GROUP_ID")
-            .unwrap_or_default()
+        let domain = config_var("NETBIRD_DOMAIN", option_env!("BAKED_NETBIRD_DOMAIN").unwrap_or(""));
+        let bearer_token = config_var("API_PAT_TOKEN", option_env!("BAKED_API_PAT_TOKEN").unwrap_or(""));
+        let auto_groups = config_var("AUTO_GROUP_ID", option_env!("BAKED_AUTO_GROUP_ID").unwrap_or(""))
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        let peer_id = std::env::var("PEER_ID").unwrap_or_default();
+        let peer_id = config_var("PEER_ID", option_env!("BAKED_PEER_ID").unwrap_or(""));
 
         Self {
             step: Step::ChooseAction,
@@ -135,7 +138,11 @@ impl WizardApp {
 
             match result {
                 Ok(invite) => {
-                    let url = api::build_invite_url(&domain, &invite.invite_token);
+                    let url = format!(
+                        "https://{}/invite?token={}",
+                        domain,
+                        invite.invite_token
+                    );
                     tx.send(WorkerMsg::InviteDone(url)).ok()
                 }
                 Err(e) => tx.send(WorkerMsg::InviteFailed(e.to_string())).ok(),
@@ -263,15 +270,6 @@ impl eframe::App for WizardApp {
                 ui.horizontal(|ui| {
                     ui.label("Tên:");
                     ui.text_edit_singleline(&mut self.name_input);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Role:");
-                    egui::ComboBox::from_id_salt("role_select")
-                        .selected_text(&self.role_input)
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut self.role_input, "user".to_string(), "user");
-                            ui.selectable_value(&mut self.role_input, "admin".to_string(), "admin");
-                        });
                 });
                 let can_submit = !self.email_input.is_empty() && !self.name_input.is_empty();
                 if ui.add_enabled(can_submit, egui::Button::new("Tạo invite")).clicked() {
