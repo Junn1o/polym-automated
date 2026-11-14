@@ -14,7 +14,16 @@ pub fn download_file(url: &str, file_path: &str) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn run_installer(installer_path: &str) -> Result<bool, Box<dyn Error>> {
-    let status = Command::new(installer_path).status()?;
+    let status = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            &format!(
+                "Start-Process -FilePath '{}' -Verb RunAs -Wait",
+                installer_path
+            ),
+        ])
+        .status()?;
 
     if status.success() {
         Ok(true)
