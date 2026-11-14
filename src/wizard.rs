@@ -50,7 +50,7 @@ pub struct WizardApp {
 impl WizardApp {
     pub fn new() -> Self {
         let domain = std::env::var("NETBIRD_DOMAIN").unwrap_or_default();
-        let bearer_token = std::env::var("API_BEARER_TOKEN").unwrap_or_default();
+        let bearer_token = std::env::var("API_PAT_TOKEN").unwrap_or_default();
         let auto_groups = std::env::var("AUTO_GROUP_ID")
             .unwrap_or_default()
             .split(',')
