@@ -94,8 +94,6 @@ impl WizardApp {
         self.install_status = "Đang kết nối tới server...".to_string();
         self.install_progress = None;
 
-        let domain = self.domain.clone();
-
         thread::spawn(move || {
             let result = (|| -> Result<(), Box<dyn std::error::Error>> {
                 let path = installer_path();
@@ -126,10 +124,6 @@ impl WizardApp {
                 let ok = installer::run_installer(path_str)?;
                 if ok {
                     installer::delete_file(path_str)?;
-                }
-                if !domain.is_empty() {
-                    let management_url = format!("https://{}:443", domain);
-                    cli::netbird_up_silent(&management_url);
                 }
                 Ok(())
             })();
