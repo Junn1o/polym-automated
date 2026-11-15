@@ -26,6 +26,7 @@ enum Step {
 }
 
 enum WorkerMsg {
+    InstallProgress(String, Option<f32>),
     InstallDone,
     InstallFailed(String),
     InviteDone(String),
@@ -49,6 +50,8 @@ pub struct WizardApp {
     email_input: String,
     name_input: String,
     role_input: String,
+    install_status: String,
+    install_progress: Option<f32>,
 }
 
 fn config_var(key: &str, baked: &str) -> String {
@@ -79,6 +82,8 @@ impl WizardApp {
             email_input: String::new(),
             name_input: String::new(),
             role_input: "user".to_string(),
+            install_status: String::new(),
+            install_progress: None,
         }
     }
 
@@ -86,6 +91,8 @@ impl WizardApp {
         let (tx, rx) = channel();
         self.rx = Some(rx);
         self.step = Step::Installing;
+        self.install_status = "Đang kết nối tới server...".to_string();
+        self.install_progress = None;
 
         let domain = self.domain.clone();
 
@@ -93,7 +100,29 @@ impl WizardApp {
             let result = (|| -> Result<(), Box<dyn std::error::Error>> {
                 let path = installer_path();
                 let path_str = path.to_str().ok_or("Đường dẫn file cài đặt không hợp lệ")?;
-                installer::download_file(INSTALLER_URL, path_str)?;
+
+                let progress_tx = tx.clone();
+                installer::download_file(INSTALLER_URL, path_str, |downloaded, total| {
+                    let (status, pct) = match total {
+                        Some(total) if total > 0 => (
+                            format!(
+                                "Đang tải file cài đặt... {:.1}/{:.1} MB",
+                                downloaded as f64 / 1_048_576.0,
+                                total as f64 / 1_048_576.0
+                            ),
+                            Some(downloaded as f32 / total as f32),
+                        ),
+                        _ => (
+                            format!("Đang tải file cài đặt... {:.1} MB", downloaded as f64 / 1_048_576.0),
+                            None,
+                        ),
+                    };
+                    progress_tx.send(WorkerMsg::InstallProgress(status, pct)).ok();
+                })?;
+
+                progress_tx
+                    .send(WorkerMsg::InstallProgress("Đang chạy trình cài đặt...".to_string(), None))
+                    .ok();
                 let ok = installer::run_installer(path_str)?;
                 if ok {
                     installer::delete_file(path_str)?;
@@ -197,8 +226,13 @@ impl WizardApp {
     fn poll_worker(&mut self) {
         let Some(rx) = &self.rx else { return };
 
-        if let Ok(msg) = rx.try_recv() {
+        while let Ok(msg) = rx.try_recv() {
+            let keep_rx = matches!(msg, WorkerMsg::InstallProgress(_, _));
             match msg {
+                WorkerMsg::InstallProgress(status, pct) => {
+                    self.install_status = status;
+                    self.install_progress = pct;
+                }
                 WorkerMsg::InstallDone => self.step = Step::ServerCheck,
                 WorkerMsg::InstallFailed(e) => self.step = Step::Error(e),
                 WorkerMsg::InviteDone(url) => {
@@ -212,7 +246,10 @@ impl WizardApp {
                 WorkerMsg::PeerIpDone(ip) => self.peer_ip = Some(ip),
                 WorkerMsg::PeerIpFailed(e) => self.peer_ip_error = Some(e),
             }
-            self.rx = None;
+            if !keep_rx {
+                self.rx = None;
+                break;
+            }
         }
     }
 }
@@ -255,7 +292,15 @@ impl eframe::App for WizardApp {
             }
             Step::Installing => {
                 ui.heading("Đang cài đặt...");
-                ui.spinner();
+                ui.label(&self.install_status);
+                match self.install_progress {
+                    Some(pct) => {
+                        ui.add(egui::ProgressBar::new(pct).show_percentage());
+                    }
+                    None => {
+                        ui.spinner();
+                    }
+                }
             }
             Step::ServerCheck => {
                 if ui.button("Quay lại").clicked() {

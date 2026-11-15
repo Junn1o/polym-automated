@@ -1,15 +1,46 @@
 #![windows_subsystem = "windows"]
 use std::error::Error;
-use std::fs;
+use std::fs::File;
+use std::io::{Read, Write};
 use std::path::Path;
+use std::time::Duration;
 
-pub fn download_file(url: &str, file_path: &str) -> Result<(), Box<dyn Error>> {
-    let response = reqwest::blocking::get(url)?;
+pub fn download_file(
+    url: &str,
+    file_path: &str,
+    mut on_progress: impl FnMut(u64, Option<u64>),
+) -> Result<(), Box<dyn Error>> {
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(300))
+        .build()?;
+
+    let mut response = client
+        .get(url)
+        .send()
+        .map_err(|e| format!("Không kết nối được tới server để tải file: {}", e))?;
+
     if !response.status().is_success() {
         Err(format!("Failed to download file: HTTP {}", response.status()))?;
     }
-    let bytes = response.bytes()?;
-    fs::write(file_path, &bytes)?;
+
+    let total = response.content_length();
+    let mut file = File::create(file_path)?;
+    let mut buf = [0u8; 8192];
+    let mut downloaded: u64 = 0;
+
+    loop {
+        let n = response
+            .read(&mut buf)
+            .map_err(|e| format!("Mất kết nối trong khi tải file: {}", e))?;
+        if n == 0 {
+            break;
+        }
+        file.write_all(&buf[..n])?;
+        downloaded += n as u64;
+        on_progress(downloaded, total);
+    }
+
     Ok(())
 }
 
@@ -26,12 +57,14 @@ pub fn run_installer(installer_path: &str) -> Result<bool, Box<dyn Error>> {
 
     let verb = HSTRING::from("runas");
     let file = HSTRING::from(installer_path);
+    let params = HSTRING::from("/S");
 
     let mut info = SHELLEXECUTEINFOW {
         cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
         fMask: SEE_MASK_NOCLOSEPROCESS,
         lpVerb: PCWSTR(verb.as_ptr()),
         lpFile: PCWSTR(file.as_ptr()),
+        lpParameters: PCWSTR(params.as_ptr()),
         nShow: 1, // SW_SHOWNORMAL
         ..Default::default()
     };

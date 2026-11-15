@@ -1,8 +1,16 @@
 use std::error::Error;
+use std::time::Duration;
 
 use reqwest::blocking::Client;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
+
+fn client() -> Result<Client, Box<dyn Error>> {
+    Ok(Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30))
+        .build()?)
+}
 
 #[derive(Serialize)]
 pub struct InviteRequest {
@@ -25,14 +33,15 @@ pub fn create_invite(
     bearer_token: &str,
     request: &InviteRequest,
 ) -> Result<InviteResponse, Box<dyn Error>> {
-    let client = Client::new();
+    let client = client()?;
 
     let res = client
         .post(api_url)
         .header(AUTHORIZATION, format!("Token {}", bearer_token))
         .header(CONTENT_TYPE, "application/json")
         .json(request)
-        .send()?;
+        .send()
+        .map_err(|e| format!("Không kết nối được tới server: {}", e))?;
 
     if !res.status().is_success() {
         Err(format!("Invite API request failed with status: {}", res.status()))?;
@@ -52,14 +61,15 @@ pub struct PeerResponse {
 }
 
 pub fn get_peer_ip(domain: &str, bearer_token: &str, peer_id: &str) -> Result<String, Box<dyn Error>> {
-    let client = Client::new();
+    let client = client()?;
     let url = format!("https://{}/api/peers/{}", domain, peer_id);
 
     let res = client
         .get(&url)
         .header(AUTHORIZATION, format!("Token {}", bearer_token))
         .header("Accept", "application/json")
-        .send()?;
+        .send()
+        .map_err(|e| format!("Không kết nối được tới server: {}", e))?;
 
     if !res.status().is_success() {
         Err(format!("Get peer API request failed with status: {}", res.status()))?;
